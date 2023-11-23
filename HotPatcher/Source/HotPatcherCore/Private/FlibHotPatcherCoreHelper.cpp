@@ -34,6 +34,9 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/EngineVersionComparison.h"
+#include "Misc/CoreMisc.h"
+#include "DerivedDataCacheInterface.h"
+
 
 DEFINE_LOG_CATEGORY(LogHotPatcherCoreHelper);
 
@@ -69,12 +72,13 @@ void UFlibHotPatcherCoreHelper::CheckInvalidCookFilesByAssetDependenciesInfo(
 		
 		FAssetData CurrentAssetData;
 		UFlibAssetManageHelper::GetSingleAssetsData(AssetDetail.PackagePath.ToString(),CurrentAssetData);
-		if(!CurrentAssetData.GetAsset()->IsValidLowLevelFast())
-		{
-			UE_LOG(LogHotPatcherCoreHelper,Warning,TEXT("%s is invalid Asset Uobject"),*CurrentAssetData.PackageName.ToString());
-			continue;
-		}
-		if (CurrentAssetData.GetAsset()->HasAnyMarks(OBJECTMARK_EditorOnly))
+		
+		// if(!CurrentAssetData.GetAsset()->IsValidLowLevelFast())
+		// {
+		// 	UE_LOG(LogHotPatcherCoreHelper,Warning,TEXT("%s is invalid Asset Uobject"),*CurrentAssetData.PackageName.ToString());
+		// 	continue;
+		// }
+		if ((CurrentAssetData.PackageFlags & PKG_EditorOnly)!=0)
 		{
 			UE_LOG(LogHotPatcherCoreHelper,Warning,TEXT("Miss %s it's EditorOnly Assets!"),*CurrentAssetData.PackageName.ToString());
 			continue;
@@ -857,8 +861,21 @@ FString UFlibHotPatcherCoreHelper::GetMetadataDir(const FString& ProjectDir, con
 	return FPaths::Combine(ProjectDir,TEXT("Saved/Cooked"),PlatformName,ProjectName,TEXT("Metadata"));
 }
 
+void UFlibHotPatcherCoreHelper::CleanDefaultMetadataCache(const TArray<ETargetPlatform>& TargetPlatforms)
+{
+	SCOPED_NAMED_EVENT_TEXT("CleanDefaultMetadataCache",FColor::Red);
+	for(ETargetPlatform Platform:TargetPlatforms)
+	{
+		FString MetadataDir = GetMetadataDir(FPaths::ProjectDir(),FApp::GetProjectName(),Platform);
+		if(FPaths::DirectoryExists(MetadataDir))
+		{
+			IFileManager::Get().DeleteDirectory(*MetadataDir,false,true);
+		}
+	}
+}
+
 void UFlibHotPatcherCoreHelper::BackupMetadataDir(const FString& ProjectDir, const FString& ProjectName,
-	const TArray<ETargetPlatform>& Platforms, const FString& OutDir)
+                                                  const TArray<ETargetPlatform>& Platforms, const FString& OutDir)
 {
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	for(const auto& Platform:Platforms)
@@ -952,52 +969,7 @@ FString UFlibHotPatcherCoreHelper::PatchSummary(const FPatchVersionDiff& DiffInf
 
 FString UFlibHotPatcherCoreHelper::ReplacePakRegular(const FReplacePakRegular& RegularConf, const FString& InRegular)
 {
-	struct FResularOperator
-	{
-		FResularOperator(const FString& InName,TFunction<FString(void)> InOperator)
-			:Name(InName),Do(InOperator){}
-		FString Name;
-		TFunction<FString(void)> Do;
-	};
-	
-	TArray<FResularOperator> RegularOpList;
-	RegularOpList.Emplace(TEXT("{VERSION}"),[&RegularConf]()->FString{return RegularConf.VersionId;});
-	RegularOpList.Emplace(TEXT("{BASEVERSION}"),[&RegularConf]()->FString{return RegularConf.BaseVersionId;});
-	RegularOpList.Emplace(TEXT("{PLATFORM}"),[&RegularConf]()->FString{return RegularConf.PlatformName;});
-	RegularOpList.Emplace(TEXT("{CHUNKNAME}"),[&RegularConf,InRegular]()->FString
-	{
-		if(InRegular.Contains(TEXT("{VERSION}")) &&
-			InRegular.Contains(TEXT("{CHUNKNAME}")) &&
-			RegularConf.VersionId.Equals(RegularConf.ChunkName))
-		{
-			return TEXT("");
-		}
-		else
-		{
-			return RegularConf.ChunkName;
-		}
-	});
-	
-	auto CustomPakNameRegular = [](const TArray<FResularOperator>& Operators,const FString& Regular)->FString
-	{
-		FString Result = Regular;
-		for(auto& Operator:Operators)
-		{
-			Result = Result.Replace(*Operator.Name,*(Operator.Do()));
-		}
-		auto ReplaceDoubleLambda = [](FString& Src,const FString& From,const FString& To)
-		{
-			while(Src.Contains(From))
-			{
-				Src = Src.Replace(*From,*To);
-			}
-		};
-		ReplaceDoubleLambda(Result,TEXT("__"),TEXT("_"));
-		ReplaceDoubleLambda(Result,TEXT("--"),TEXT("-"));
-		return Result;
-	};
-	
-	return CustomPakNameRegular(RegularOpList,InRegular);
+	return UFlibPatchParserHelper::ReplacePakRegular(RegularConf,InRegular);
 }
 
 bool UFlibHotPatcherCoreHelper::CheckSelectedAssetsCookStatus(const FString& OverrideCookedDir,const TArray<FString>& PlatformNames, const FAssetDependenciesInfo& SelectedAssets, FString& OutMsg)
@@ -1989,6 +1961,12 @@ void UFlibHotPatcherCoreHelper::WaitForAsyncFileWrites()
 	WaitThreadWorker->Join();
 }
 
+void UFlibHotPatcherCoreHelper::WaitDDCComplete()
+{
+	SCOPED_NAMED_EVENT_TEXT("WaitDDCComplete",FColor::Red);
+	GetDerivedDataCacheRef().WaitForQuiescence(true);
+}
+
 bool UFlibHotPatcherCoreHelper::IsCanCookPackage(const FString& LongPackageName)
 {
 	bool bResult = false;
@@ -2048,7 +2026,7 @@ TArray<FExternDirectoryInfo> UFlibHotPatcherCoreHelper::GetProjectNotAssetDirCon
 	TArray<FExternDirectoryInfo> result;
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 
-	FString BasePath = FString::Printf(TEXT("../../../%s/Content/%s"),FApp::GetProjectName());
+	FString BasePath = FString::Printf(TEXT("../../../%s/Content/"),FApp::GetProjectName());
 	auto FixPath = [](const FString& BasePath,const FString& Path)->FString
 	{
 		FString result;
@@ -2319,7 +2297,8 @@ void UFlibHotPatcherCoreHelper::WaitObjectsCachePlatformDataComplete(TSet<UObjec
 		// Wait for all shaders to finish compiling
 		UFlibShaderCodeLibraryHelper::WaitShaderCompilingComplete();
 	}
-
+	UFlibHotPatcherCoreHelper::WaitDistanceFieldAsyncQueueComplete();
+	
 	{
 		SCOPED_NAMED_EVENT_TEXT("FlushAsyncLoading And WaitingAsyncTasks",FColor::Red);
 		FlushAsyncLoading();
@@ -2365,7 +2344,16 @@ void UFlibHotPatcherCoreHelper::WaitObjectsCachePlatformDataComplete(TSet<UObjec
 			
 			if(!!PendingCachePlatformDataObjects.Num())
 			{
+			#if ENGINE_MAJOR_VERSION > 4
+				// call ProcessAsyncTasks instead of pure wait using Sleep
+				while (FAssetCompilingManager::Get().GetNumRemainingAssets() > 0)
+				{
+					// Process any asynchronous Asset compile results that are ready, limit execution time
+					FAssetCompilingManager::Get().ProcessAsyncTasks(true);
+				}
+			#else
 				FPlatformProcess::Sleep(0.1f);
+			#endif // ENGINE_MAJOR_VERSION > 4
 				GLog->Flush();
 			}
 		}
@@ -2716,4 +2704,15 @@ void UFlibHotPatcherCoreHelper::DumpActiveTargetPlatforms()
 FString UFlibHotPatcherCoreHelper::GetPlatformsStr(TArray<ETargetPlatform> Platforms)
 {
 	return UFlibPatchParserHelper::GetPlatformsStr(Platforms);
+}
+
+#include "DistanceFieldAtlas.h"
+void UFlibHotPatcherCoreHelper::WaitDistanceFieldAsyncQueueComplete()
+{
+	SCOPED_NAMED_EVENT_TEXT("WaitDistanceFieldAsyncQueueComplete",FColor::Red);
+	if (GDistanceFieldAsyncQueue)
+	{
+		UE_LOG(LogHotPatcherCoreHelper, Display, TEXT("Waiting for distance field async operations..."));
+		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
+	}
 }

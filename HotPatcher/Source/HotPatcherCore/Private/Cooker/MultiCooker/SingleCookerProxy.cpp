@@ -281,6 +281,13 @@ void USingleCookerProxy::ExecCookCluster(const FCookCluster& CookCluster)
 {
 	SCOPED_NAMED_EVENT_TEXT("ExecCookCluster",FColor::Red);
 
+	// for GC
+	{
+		UE_LOG(LogHotPatcher,Display,TEXT("ExecuteCookCluster Try GC..."));
+		GEngine->ForceGarbageCollection(false);
+		CollectGarbage(RF_NoFlags, false);
+	}
+	
 	CookedClusterCount++;
 	UE_LOG(LogHotPatcher,Display,TEXT("ExecuteCookCluster %d with %d assets, total cluster %d"),CookedClusterCount,CookCluster.AssetDetails.Num(),ClusterCount);
 	
@@ -371,12 +378,9 @@ void USingleCookerProxy::ExecCookCluster(const FCookCluster& CookCluster)
 	// clean cached ddd / release memory
 	// CleanClusterCachedPlatformData(CookCluster);
 	UFlibShaderCodeLibraryHelper::WaitShaderCompilingComplete();
+	UFlibHotPatcherCoreHelper::WaitDistanceFieldAsyncQueueComplete();
 	UFlibHotPatcherCoreHelper::WaitForAsyncFileWrites();
-	// for GC
-	{
-		GEngine->ForceGarbageCollection(true);
-		CollectGarbage(RF_NoFlags, true);
-	}
+	UFlibHotPatcherCoreHelper::WaitDDCComplete();
 }
 
 void USingleCookerProxy::Tick(float DeltaTime)

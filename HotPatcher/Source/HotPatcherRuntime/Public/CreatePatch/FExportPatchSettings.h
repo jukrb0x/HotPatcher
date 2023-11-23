@@ -35,7 +35,28 @@
 #include "FExportPatchSettings.generated.h"
 
 
+USTRUCT()
+struct HOTPATCHERRUNTIME_API FPatherResult
+{
+	GENERATED_BODY()
+	UPROPERTY()
+	TArray<FAssetDetail> PatcherAssetDetails;
+};
 
+USTRUCT(BlueprintType)
+struct FCookAdvancedOptions
+{
+	GENERATED_BODY()
+	FCookAdvancedOptions();
+	// ConcurrentSave for cooking
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bCookParallelSerialize = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 NumberOfAssetsPerFrame = 100;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TMap<UClass*,int32> OverrideNumberOfAssetsPerFrame;
+	FORCEINLINE const TMap<UClass*,int32>& GetOverrideNumberOfAssetsPerFrame()const{ return OverrideNumberOfAssetsPerFrame; }
+};
 
 /** Singleton wrapper to allow for using the setting structure in SSettingsView */
 USTRUCT(BlueprintType)
@@ -98,8 +119,8 @@ public:
 
 	FORCEINLINE bool IsCustomPakNameRegular()const {return bCustomPakNameRegular;}
 	FORCEINLINE FString GetPakNameRegular()const { return PakNameRegular;}
-	FORCEINLINE bool IsCustomPakSaveDirRegular()const {return bCustomPakSaveDirRegular;}
-	FORCEINLINE FString GetPakSaveDirRegular()const { return PakSaveDirRegular;}
+	FORCEINLINE bool IsCustomPakPathRegular()const {return bCustomPakPathRegular;}
+	FORCEINLINE FString GetPakPathRegular()const { return PakPathRegular;}
 	FORCEINLINE bool IsCookPatchAssets()const {return bCookPatchAssets;}
 	FORCEINLINE bool IsIgnoreDeletedAssetsInfo()const {return bIgnoreDeletedAssetsInfo;}
 	FORCEINLINE bool IsSaveDeletedAssetsToNewReleaseJson()const {return bStorageDeletedAssetsToNewReleaseJson;}
@@ -126,6 +147,7 @@ public:
 	FORCEINLINE bool IsImportProjectSettings()const{ return bImportProjectSettings; }
 
 	virtual FString GetCombinedAdditionalCommandletArgs()const override;
+	virtual bool IsCookParallelSerialize() const { return CookAdvancedOptions.bCookParallelSerialize; }
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseVersion")
 		bool bByBaseVersion = false;
@@ -199,6 +221,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pak Options")
 		bool bCookPatchAssets = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pak Options", meta=(EditCondition = "bCookPatchAssets"))
+		FCookAdvancedOptions CookAdvancedOptions;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pak Options", meta=(EditCondition = "bCookPatchAssets"))
 		FCookShaderOptions CookShaderOptions;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pak Options", meta=(EditCondition = "bCookPatchAssets"))
 		FAssetRegistryOptions SerializeAssetRegistryOptions;
@@ -228,10 +252,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pak Options",meta=(EditCondition = "bCustomPakNameRegular"))
 		FString PakNameRegular = TEXT("{VERSION}_{CHUNKNAME}_{PLATFORM}_001_P");
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pak Options")
-		bool bCustomPakSaveDirRegular = false;
+		bool bCustomPakPathRegular = false;
 	// Can use value: {VERSION} {BASEVERSION} {CHUNKNAME} {PLATFORM} 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pak Options",meta=(EditCondition = "bCustomPakSaveDirRegular"))
-		FString PakSaveDirRegular = TEXT("{CHUNKNAME}/{PLATFORM}");
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pak Options",meta=(EditCondition = "bCustomPakPathRegular"))
+		FString PakPathRegular = TEXT("{CHUNKNAME}/{PLATFORM}");
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SaveTo")
 		bool bStorageNewRelease = true;
@@ -258,5 +282,17 @@ public:
 		FString StorageCookedDir = TEXT("[PROJECTDIR]/Saved/Cooked");
 
 	FString GetStorageCookedDir()const;
+	FString GetChunkSavedDir(const FString& InVersionId,const FString& InBaseVersionId,const FString& InChunkName,const FString& InPlatformName)const;
 	
+};
+
+struct HOTPATCHERRUNTIME_API FReplacePakRegular
+{
+	FReplacePakRegular()=default;
+	FReplacePakRegular(const FString& InVersionId,const FString& InBaseVersionId,const FString& InChunkName,const FString& InPlatformName):
+	VersionId(InVersionId),BaseVersionId(InBaseVersionId),ChunkName(InChunkName),PlatformName(InPlatformName){}
+	FString VersionId;
+	FString BaseVersionId;
+	FString ChunkName;
+	FString PlatformName;
 };

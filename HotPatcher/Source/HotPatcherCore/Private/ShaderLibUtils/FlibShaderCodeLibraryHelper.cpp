@@ -112,7 +112,7 @@ FString UFlibShaderCodeLibraryHelper::GenerateShaderCodeLibraryName(FString cons
 	return ActualName;
 }
 
-bool UFlibShaderCodeLibraryHelper::SaveShaderLibrary(const ITargetPlatform* TargetPlatform,TArray<FName> ShaderFormats, const FString& ShaderCodeDir,const FString& RootMetaDataPath, bool bMaster)
+bool UFlibShaderCodeLibraryHelper::SaveShaderLibrary(const ITargetPlatform* TargetPlatform,TArray<FName> ShaderFormats,FString const& Name, const FString& ShaderCodeDir,const FString& RootMetaDataPath, bool bMaster)
 {
 	bool bSaved = false;
 	// TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
@@ -127,7 +127,7 @@ bool UFlibShaderCodeLibraryHelper::SaveShaderLibrary(const ITargetPlatform* Targ
 #if !UE_VERSION_OLDER_THAN(5,1,0)
 		bool bOutHasData = false;
 #endif
-		bSaved = SHADER_COOKER_CLASS::SaveShaderLibraryWithoutChunking(TargetPlatform, FApp::GetProjectName(), ShaderCodeDir, RootMetaDataPath, PlatformSCLCSVPaths, ErrorString
+		bSaved = SHADER_COOKER_CLASS::SaveShaderLibraryWithoutChunking(TargetPlatform, Name, ShaderCodeDir, RootMetaDataPath, PlatformSCLCSVPaths, ErrorString
 #if !UE_VERSION_OLDER_THAN(5,1,0)
 		,bOutHasData
 #endif
@@ -166,27 +166,7 @@ bool UFlibShaderCodeLibraryHelper::SaveShaderLibrary(const ITargetPlatform* Targ
 	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
 	if (ShaderFormats.Num() > 0)
 	{
-		bSaved = UFlibShaderCodeLibraryHelper::SaveShaderLibrary(TargetPlatform,ShaderFormats,ShaderCodeDir,RootMetaDataPath,bMaster);
-// 		FString TargetPlatformName = TargetPlatform->PlatformName();
-// 		TArray<FString> PlatformSCLCSVPaths;// = OutSCLCSVPaths.FindOrAdd(FName(TargetPlatformName));
-// 		
-// #if ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION > 25
-// 	#if ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION > 26
-// 		FString ErrorString;
-// 		bSaved = SHADER_COOKER_CLASS::SaveShaderLibraryWithoutChunking(TargetPlatform, FApp::GetProjectName(), ShaderCodeDir, RootMetaDataPath, PlatformSCLCSVPaths, ErrorString);
-// 	#else
-// 		bSaved = FShaderCodeLibrary::SaveShaderCode(ShaderCodeDir, RootMetaDataPath, ShaderFormats, PlatformSCLCSVPaths, ChunkAssignments);
-// 	#endif
-// #else
-// 		if(bMaster)
-// 		{
-// 			bSaved = FShaderCodeLibrary::SaveShaderCodeMaster(ShaderCodeDir, RootMetaDataPath, ShaderFormats, PlatformSCLCSVPaths);
-// 		}
-// 		else
-// 		{
-// 			bSaved = FShaderCodeLibrary::SaveShaderCodeChild(ShaderCodeDir, RootMetaDataPath, ShaderFormats);
-// 		}
-// #endif	
+		bSaved = UFlibShaderCodeLibraryHelper::SaveShaderLibrary(TargetPlatform,ShaderFormats,Name,ShaderCodeDir,RootMetaDataPath,bMaster);
 	}
 	return bSaved;
 }
@@ -229,17 +209,20 @@ TArray<FString> UFlibShaderCodeLibraryHelper::FindCookedShaderLibByPlatform(cons
 	
 	if(PlatfomName.StartsWith(TEXT("IOS"),ESearchCase::IgnoreCase) || PlatfomName.StartsWith(TEXT("Mac"),ESearchCase::IgnoreCase))
 	{
-		FoundFiles.Append(GetMetalShaderFormatLambda(Directory,TEXT("metallib"),bRecursive));
-		FoundFiles.Append(GetMetalShaderFormatLambda(Directory,TEXT("metalmap"),bRecursive));
+		FoundFiles.Append(GetMetalShaderFormatLambda(Directory,TEXT("*.metallib"),bRecursive));
+		FoundFiles.Append(GetMetalShaderFormatLambda(Directory,TEXT("*.metalmap"),bRecursive));
 	}
 	
 	if(!FoundFiles.Num())
 	{
-		FoundFiles.Append(GetMetalShaderFormatLambda(Directory,TEXT("ushaderbytecode"),bRecursive));
+		FoundFiles.Append(GetMetalShaderFormatLambda(Directory,TEXT("*.ushaderbytecode"),bRecursive));
 	}
-	for(auto& File:FoundFiles)
+	if(!bRecursive)
 	{
-		File = FPaths::Combine(Directory,File);
+		for(auto& File:FoundFiles)
+		{
+			File = FPaths::Combine(Directory,File);
+		}
 	}
 	return FoundFiles;
 }
@@ -276,6 +259,14 @@ void UFlibShaderCodeLibraryHelper::CleanShaderWorkerDir()
 	{
 		UE_LOG(LogHotPatcher, Warning, TEXT("Could not delete the shader compiler working directory '%s'."), *FPaths::ShaderWorkingDir());
 	}
+}
+
+#if !UE_VERSION_OLDER_THAN(5,2,0)
+#include "DataDrivenShaderPlatformInfo.h"
+#endif
+bool UFlibShaderCodeLibraryHelper::RHISupportsNativeShaderLibraries(const FStaticShaderPlatform Platform)
+{
+	return ::RHISupportsNativeShaderLibraries(Platform);;
 }
 
 void UFlibShaderCodeLibraryHelper::CancelMaterialShaderCompile(UMaterialInterface* MaterialInterface)

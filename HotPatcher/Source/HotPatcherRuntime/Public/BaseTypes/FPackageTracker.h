@@ -79,36 +79,62 @@ struct FPackageTracker : public FPackageTrackerBase
 
 	virtual void OnPackageCreated(UPackage* Package) override
 	{
+		if(!IsTracking())
+		{
+			return;
+		}
 		FName AssetPathName = FName(*Package->GetPathName());
 		LoadedPackages.Add(AssetPathName);
 		if(!ExisitAssets.Contains(AssetPathName))
 		{
-			if(FPackageName::DoesPackageExist(AssetPathName.ToString()))
+			FString AssetPathNameStr = AssetPathName.ToString();
+			if(FPackageName::DoesPackageExist(AssetPathNameStr)
+#if WITH_UE5
+				 && !AssetPathNameStr.StartsWith(TEXT("/Game/__ExternalActors__")) &&
+				!AssetPathNameStr.StartsWith(TEXT("/Game/__ExternalObjects__"))
+#endif
+				)
 			{
-				UE_LOG(LogHotPatcher,Display,TEXT("[PackageTracker] Add %s"),*AssetPathName.ToString());
-				PackagesPendingSave.Add(AssetPathName);
+				UE_LOG(LogHotPatcher,Display,TEXT("[PackageTracker] Add %s"),*AssetPathNameStr);
+				AddTrackPackage(AssetPathName);
 			}
 			else
 			{
-				UE_LOG(LogHotPatcher,Display,TEXT("[PackageTracker] %s is not valid package!"),*AssetPathName.ToString());
+				UE_LOG(LogHotPatcher,Verbose,TEXT("[PackageTracker] %s is not valid package!"),*AssetPathNameStr);
 			}
 		}
 	}
 	virtual void OnPackageDeleted(UPackage* Package) override
 	{
 		FName AssetPathName = FName(*Package->GetPathName());
-		if(PackagesPendingSave.Contains(AssetPathName))
-		{
-			PackagesPendingSave.Remove(AssetPathName);
-		}
+		RemoveTrackPackage(AssetPathName);
 	}
 	
 public:
 	// typedef TSet<UPackage*> PendingPackageSet;
+	const TSet<FName>& GetAdditionalPackageSet(){ return AdditionalPackageSet; }
 	const TSet<FName>& GetPendingPackageSet()const {return PackagesPendingSave; }
+	void CleanPaddingSet(){ PackagesPendingSave.Empty(); }
+	void SetTracking(bool bEnable){ bIsTracking = bEnable; }
+	bool IsTracking()const { return bIsTracking; }
 protected:
+	void AddTrackPackage(FName PackageName)
+	{
+		if(!AdditionalPackageSet.Contains(PackageName))
+		{
+			AdditionalPackageSet.Add(PackageName);
+			PackagesPendingSave.Add(PackageName);
+		}
+	}
+	void RemoveTrackPackage(FName PackageName)
+	{
+		AdditionalPackageSet.Remove(PackageName);
+		PackagesPendingSave.Remove(PackageName);
+	}
+	TSet<FName> AdditionalPackageSet;
 	TSet<FName>	 PackagesPendingSave;
 	TSet<FName>& ExisitAssets;
+	bool bIsTracking = true;
 };
 
 struct FClassesPackageTracker : public FPackageTrackerBase

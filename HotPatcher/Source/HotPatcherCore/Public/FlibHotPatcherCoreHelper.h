@@ -81,7 +81,7 @@ public:
 
 	static FChunkInfo MakeChunkFromPatchSettings(struct FExportPatchSettings const* InPatchSetting);
 	static FChunkInfo MakeChunkFromPatchVerison(const FHotPatcherVersion& InPatchVersion);
-	static FString GetAssetCookedSavePath(const FString& BaseDir, const FString PacakgeName, const FString& Platform);
+	static FString GetAssetCookedSavePath(const FString& BaseDir, const FString PacakgeName, const FString& Platform,bool bSkipPlatform = false);
 
 	static FString GetProjectCookedDir();
 #if WITH_PACKAGE_CONTEXT
@@ -89,39 +89,18 @@ public:
 	static TMap<ETargetPlatform,TSharedPtr<FSavePackageContext>> CreatePlatformsPackageContexts(const TArray<ETargetPlatform>& Platforms,bool bIoStore,const FString& OverrideCookedDir);
 	static bool SavePlatformBulkDataManifest(TMap<ETargetPlatform, TSharedPtr<FSavePackageContext>>&PlatformSavePackageContexts,ETargetPlatform Platform);
 #endif
-	//UFUNCTION(BlueprintCallable)
-	static void CookAssets(
-		const TArray<FSoftObjectPath>& Assets,
-		const TArray<ETargetPlatform>& Platforms,
-		FCookActionCallback CookActionCallback,
-#if WITH_PACKAGE_CONTEXT
-		class TMap<ETargetPlatform, FSavePackageContext*> PlatformSavePackageContext = TMap<
-			ETargetPlatform, FSavePackageContext*>{},
-#endif
-		const FString& InSavePath = FPaths::Combine(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()),
-		                                            TEXT("Cooked"))
-	);
-	static bool CookPackage(
-		const FSoftObjectPath& AssetObjectPath,
-		TMap<ETargetPlatform,ITargetPlatform*> CookPlatforms,
-		FCookActionCallback CookActionCallback,
-#if WITH_PACKAGE_CONTEXT
-		class TMap<FString,FSavePackageContext*> PlatformSavePackageContext = TMap<FString,FSavePackageContext*>{},
-#endif
-		const FString& InSavePath = FPaths::Combine(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()),TEXT("Cooked")),
-		bool bStorageConcurrent = false
-	);
-	static bool CookPackage(
-		UPackage* Package,
-		TMap<ETargetPlatform,ITargetPlatform*> CookPlatforms,
-		FCookActionCallback CookActionCallback,
-#if WITH_PACKAGE_CONTEXT
-		class TMap<FString,FSavePackageContext*> PlatformSavePackageContext,
-#endif
-		const FString& InSavePath,
-		bool bStorageConcurrent 
-	);
 
+	static bool CookPackages(
+		const TArray<UPackage*> Packages,
+		TMap<ETargetPlatform,ITargetPlatform*> CookPlatforms,
+		FCookActionCallback CookActionCallback,
+	#if WITH_PACKAGE_CONTEXT
+		class TMap<FString,FSavePackageContext*> PlatformSavePackageContext,
+	#endif
+		const TMap<FName,FString>& CookedPlatformSavePaths,
+		bool bStorageConcurrent
+	);
+	
 	static bool CookPackage(
 		UPackage* Package,
 		TMap<ETargetPlatform,ITargetPlatform*> CookPlatforms,
@@ -131,6 +110,22 @@ public:
 #endif
 		const TMap<FName,FString>& CookedPlatformSavePaths,
 		bool bStorageConcurrent
+	);
+
+	static bool UseCookCmdlet(UPackage* Package,TMap<ETargetPlatform,ITargetPlatform*> CookPlatforms);
+	static bool RunCmdlet(const FString& CmdletName,const FString& Params,int32& OutRetValue);
+	static bool CookPackagesByCmdlet(
+		const TArray<UPackage*> Packages,
+		TMap<ETargetPlatform,ITargetPlatform*> CookPlatforms,
+		FCookActionCallback CookActionCallback,
+		const TMap<FName,FString>& CookedPlatformSavePaths,
+		bool bSharedMaterialLibrary = false
+	);
+	static bool CookByCmdlet(
+		const TArray<FString>& LongPackageNames,
+		ETargetPlatform TargetPlatform,
+		const FString& SaveToCookedDir = TEXT(""),
+		bool bSharedMaterialLibrary = false
 	);
 
 	static void CookChunkAssets(
@@ -293,4 +288,6 @@ public:
 	static TArray<UClass*> GetPreCacheClasses();
 	static void DumpActiveTargetPlatforms();
 	static FString GetPlatformsStr(TArray<ETargetPlatform> Platforms);
+	static FPakCommandItem ParsePakResponseFileLine(const FString& Line);
+	static void CopyDirectoryRecursively(const FString& SourceDirectory, const FString& DestinationDirectory);
 };

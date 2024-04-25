@@ -2,7 +2,7 @@
 #pragma once
 
 #include "FPakVersion.h"
-
+#include "AssetRegistry.h"
 // Engine Header
 #include "Resources/Version.h"
 #include "CoreMinimal.h"
@@ -10,7 +10,6 @@
 #include "Templates/SharedPointer.h"
 #include "Dom/JsonObject.h"
 #include "IPlatformFilePak.h"
-#include "AssetRegistryState.h"
 #include "FlibPakHelper.generated.h"
 
 #if ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >=26
@@ -79,9 +78,15 @@ public:
 		static bool LoadShaderbytecodeInDefaultDir(const FString& LibraryName);	
 	UFUNCTION(BlueprintCallable,Exec)
 		static void CloseShaderbytecode(const FString& LibraryName);
-	
+	UFUNCTION(BlueprintCallable,Exec)
+		static void LoadShaderLibrary(const FString& ScanShaderLibs);
+	UFUNCTION(BlueprintCallable,Exec)
+		static void LoadHotPatcherAllShaderLibrarys();
+		
 	static bool LoadAssetRegistryToState(const TCHAR* Path,FAssetRegistryState& Out);
 	UFUNCTION(BlueprintCallable,Exec)
 		static bool LoadAssetRegistry(const FString& LibraryName, const FString& LibraryDir);
-	
+
+private:
+	static TSet<FName> LoadShaderLibraryNames;
 };

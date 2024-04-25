@@ -97,7 +97,9 @@ public class HotPatcherRuntime : ModuleRules
 		{
 			PublicDefinitions.Add("CUSTOM_ASSET_GUID");	
 		}
+		AddPublicDefinitions("WITH_UE5", Version.MajorVersion > 4);
 		
+		AddPublicDefinitions("AUTOLOAD_SHADERLIB_AT_RUNTIME", true);
 		bLegacyPublicIncludePaths = false;
 		OptimizeCode = CodeOptimization.InShippingBuildsOnly;
 	}

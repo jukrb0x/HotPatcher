@@ -28,11 +28,11 @@ struct HOTPATCHERRUNTIME_API FHotPatcherSettingBase:public FPatcherEntitySetting
 
     virtual TArray<FExternFileInfo> GetAllExternFilesByPlatform(ETargetPlatform InTargetPlatform,bool InGeneratedHash = false);
     virtual TMap<ETargetPlatform,FPlatformExternFiles> GetAllPlatfotmExternFiles(bool InGeneratedHash = false);
-    virtual TArray<FExternFileInfo> GetAddExternFilesByPlatform(ETargetPlatform InTargetPlatform);
+    virtual TArray<FExternFileInfo> GetAddExternFilesByPlatform(ETargetPlatform InTargetPlatform,bool InGeneratedHash);
     virtual TArray<FExternDirectoryInfo> GetAddExternDirectoryByPlatform(ETargetPlatform InTargetPlatform);
 
     virtual FString GetSaveAbsPath()const;
-    FORCEINLINE_DEBUGGABLE FString GetSavePath()const{ return SavePath.Path; }
+    FORCEINLINE_DEBUGGABLE virtual FString GetSavePath()const{ return SavePath.Path; }
     
     FORCEINLINE virtual bool IsStandaloneMode()const {return bStandaloneMode;}
     FORCEINLINE virtual bool IsSaveConfig()const {return bStorageConfig;}

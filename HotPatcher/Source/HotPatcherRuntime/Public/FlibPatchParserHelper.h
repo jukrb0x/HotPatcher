@@ -17,6 +17,7 @@
 #include "FCookerConfig.h"
 #include "FPlatformExternFiles.h"
 #include "Templates/HotPatcherTemplateHelper.hpp"
+#include "AssetRegistry.h"
 
 // engine header
 #include "CoreMinimal.h"
@@ -24,7 +25,6 @@
 #include "JsonObjectConverter.h"
 #include "Misc/CommandLine.h"
 #include "FPlatformExternAssets.h"
-#include "AssetRegistryState.h"
 #include "Containers/UnrealString.h"
 #include "CreatePatch/FExportPatchSettings.h"
 #include "Templates/SharedPointer.h"
@@ -126,7 +126,7 @@ public:
 	static TArray<FString> GetEnabledPluginConfigs(const FString& InPlatformName);
 
 
-	static TArray<FExternFileInfo> ParserExDirectoryAsExFiles(const TArray<FExternDirectoryInfo>& InExternDirectorys);
+	static TArray<FExternFileInfo> ParserExDirectoryAsExFiles(const TArray<FExternDirectoryInfo>& InExternDirectorys,EHashCalculator HashCalculator,bool InGeneratedHash = true);
 	static TArray<FAssetDetail> ParserExFilesInfoAsAssetDetailInfo(const TArray<FExternFileInfo>& InExFiles);
 
 	// get Engine / Project / Plugin ini files
@@ -181,6 +181,7 @@ public:
 	static TMap<FString,FString> GetReplacePathMarkMap();
 	static FString ReplaceMark(const FString& Src);
 	static FString ReplaceMarkPath(const FString& Src);
+	static FString MakeMark(const FString& Src);
 	// [PORJECTDIR] to real path
 	static void ReplacePatherSettingProjectDir(TArray<FPlatformExternAssets>& PlatformAssets);
 

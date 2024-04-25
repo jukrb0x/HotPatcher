@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "Engine/WorldComposition.h"
 #include "Resources/Version.h"
+#include "Misc/EngineVersionComparison.h"
 
 void FAssetDependenciesParser::Parse(const FAssetDependencies& InParseConfig)
 {
@@ -136,7 +137,8 @@ bool FAssetDependenciesParser::IsIgnoreAsset(const FAssetData& AssetData)
 	return bIsForceSkip || bIsEditorFlag;
 }
 
-bool FAssetDependenciesParser::IsForceSkipAsset(const FString& LongPackageName, const TSet<FName>& IgnoreTypes, const TArray<FString>& IgnoreFilters, TArray<FString> ForceSkipFilters, const TArray<FString>& ForceSkipPackageNames, bool
+bool FAssetDependenciesParser::IsForceSkipAsset(const FString& LongPackageName, const TSet<FName>& IgnoreTypes, const TArray<FString>& IgnoreFilters, TArray<FString> ForceSkipFilters, const
+                                                TSet<FString>& ForceSkipPackageNames, bool
                                                 bDispalyLog)
 {
 	SCOPED_NAMED_EVENT_TEXT("IsForceSkipAsset",FColor::Red);
@@ -203,7 +205,7 @@ TSet<FName> FAssetDependenciesParser::GatherAssetDependicesInfoRecursively(
     bool bRecursively,
     const TArray<FString>& IgnoreDirectories,
     const TArray<FString>& ForceSkipDirectories,
-    const TArray<FString>& ForceSkipPackageNames,
+    const TSet<FString>& ForceSkipPackageNames,
     const TSet<FName>& IgnoreAssetTypes,
     FScanedCachesType& InScanedCaches)
 {
@@ -211,7 +213,7 @@ TSet<FName> FAssetDependenciesParser::GatherAssetDependicesInfoRecursively(
 	
 	TSet<FName> AssetDependencies;
 	SCOPED_NAMED_EVENT_TEXT("GatherAssetDependicesInfoRecursively",FColor::Red);
-	TArray<FString> TempForceSkipPackageNames = ForceSkipPackageNames;
+	TSet<FString> TempForceSkipPackageNames = ForceSkipPackageNames;
 	TempForceSkipPackageNames.Add(InLongPackageName.ToString());
 
 	FAssetData CurrentAssetData;
@@ -230,7 +232,14 @@ TSet<FName> FAssetDependenciesParser::GatherAssetDependicesInfoRecursively(
 	{
 		SCOPED_NAMED_EVENT_TEXT("GetDependencies",FColor::Red);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		bGetDependenciesSuccess = InAssetRegistryModule.Get().GetDependencies(InLongPackageName, CurrentAssetDependencies, TotalType);
+			bGetDependenciesSuccess = InAssetRegistryModule.Get().GetDependencies(InLongPackageName, CurrentAssetDependencies,
+
+#if UE_VERSION_OLDER_THAN(5,3,0)
+				TotalType
+#else
+				UE::AssetRegistry::EDependencyCategory::Package
+#endif
+		);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		for(const auto& SkipForDependencies:ParserSkipAssetByDependencies(CurrentAssetData,CurrentAssetDependencies))

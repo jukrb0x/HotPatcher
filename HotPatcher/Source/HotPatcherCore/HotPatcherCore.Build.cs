@@ -175,14 +175,14 @@ public class HotPatcherCore : ModuleRules
 				Path.Combine(EngineDirectory,"Source/Editor/UnrealEd/Private"),
 			});
 		}
-		
+
+		AddPublicDefinitions("WITH_UE5", Version.MajorVersion > 4);
+
+		AddPublicDefinitions("WITH_UE5_BY_COOKCMDLT", (Version.MajorVersion > 4) && true);
 		if (Version.MajorVersion > 4)
 		{
 			PublicIncludePaths.AddRange(new List<string>()
 			{
-				// Path.Combine(EngineDirectory,"Source/Developer/IoStoreUtilities/Internal"),
-				// Path.Combine(EngineDirectory,"Source/Editor/UnrealEd/Private/Cooker"),
-				// Path.Combine(EngineDirectory,"Source/Editor/UnrealEd/Private"),
 				Path.Combine(EngineDirectory,"Source/Runtime/CoreUObject/Internal/Serialization"),
 			});
 		}
@@ -190,7 +190,7 @@ public class HotPatcherCore : ModuleRules
 		PublicDefinitions.AddRange(new string[]
 		{
 			"TOOL_NAME=\"HotPatcher\"",
-			"CURRENT_VERSION_ID=81",
+			"CURRENT_VERSION_ID=82",
 			"CURRENT_PATCH_ID=0",
 			"REMOTE_VERSION_FILE=\"https://imzlp.com/opensource/version.json\""
 		});

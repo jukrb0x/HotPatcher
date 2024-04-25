@@ -56,6 +56,8 @@ struct FCookAdvancedOptions
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TMap<UClass*,int32> OverrideNumberOfAssetsPerFrame;
 	FORCEINLINE const TMap<UClass*,int32>& GetOverrideNumberOfAssetsPerFrame()const{ return OverrideNumberOfAssetsPerFrame; }
+	UPROPERTY(EditAnywhere)
+	bool bAccompanyCookForShader = false;
 };
 
 /** Singleton wrapper to allow for using the setting structure in SSettingsView */
@@ -268,6 +270,8 @@ public:
 		bool bStorageDeletedAssetsToNewReleaseJson = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SaveTo",meta=(EditCondition="bByBaseVersion"))
 		bool bStorageDiffAnalysisResults = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SaveTo")
+		bool bStorageUnrealPakList = true;
 	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SaveTo")
 	// 	bool bStorageAssetDependencies = false;
 	// UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "SaveTo")
